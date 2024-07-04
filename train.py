@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.utils.data as data
 import json
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Udacity Training')
 
@@ -24,7 +25,7 @@ def parse_arguments():
 
     parser.add_argument('--epochs', default=5, type=int, help='number of epochs')
 
-    parser.add_argument('--gpu', default=True, type=bool, help='whether to use gpu')
+    parser.add_argument('--gpu', help='whether to use gpu')
 
     return parser.parse_args()
 
@@ -62,18 +63,24 @@ def valid_data_transform(train_dir):
     return data.DataLoader(datasets.ImageFolder(train_dir, transform=valid_transforms), batch_size=50, shuffle=True)
 
 
-def validation(device, model, valid_loader, criterion):
+def validation_data(device, model, valid_loader, criterion):
     model.to(device)
 
     valid_loss = 0
+
     accuracy = 0
+
     for inputs, labels in valid_loader:
         inputs, labels = inputs.to(device), labels.to(device)
+
         output = model.forward(inputs)
+
         valid_loss += criterion(output, labels).item()
 
         ps = torch.exp(output)
+
         equality = (labels.data == ps.max(dim=1)[1])
+
         accuracy += equality.type(torch.FloatTensor).mean()
 
     return valid_loss, accuracy
@@ -83,6 +90,7 @@ def train_data(args, device, model, train_data_loader, val_data_loader, class_to
     model.to(device)
 
     learning_rate = args.learning_rate
+
     epochs = args.epochs
 
     criterion = nn.NLLLoss()
@@ -93,12 +101,6 @@ def train_data(args, device, model, train_data_loader, val_data_loader, class_to
         epochs = 5
 
     print("Training start.")
-
-    avg_train_loss = 0
-
-    avg_val_loss = 0
-
-    avg_train_accuracy = 0
 
     print_every = 20
 
@@ -132,7 +134,7 @@ def train_data(args, device, model, train_data_loader, val_data_loader, class_to
                 model.eval()
 
                 with torch.no_grad():
-                    val_loss, accuracy = validation(device, model, val_data_loader, criterion)
+                    val_loss, accuracy = validation_data(device, model, val_data_loader, criterion)
 
                     average_train_loss_batch = running_loss / print_every
 
@@ -158,6 +160,7 @@ def train_data(args, device, model, train_data_loader, val_data_loader, class_to
         'arch': args.arch
     }
 
+
     if args.save_dir:
         torch.save(checkpoint, args.save_dir)
     else:
@@ -170,13 +173,13 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if args.arch == 'vgg13':
-        model = models.vgg13()
+        model = models.vgg13(pretrained=True)
         input_size = 25088
     elif args.arch == 'vgg16':
-        model = models.vgg16()
+        model = models.vgg16(pretrained=True)
         input_size = 25088
     else:
-        model = models.alexnet()
+        model = models.alexnet(pretrained=True)
         input_size = 9216
 
     data_dir = 'flowers/'
@@ -190,7 +193,6 @@ def main():
 
     with open('cat_to_name.json', 'r') as f:
         cat_to_name = json.load(f)
-
 
     for param in model.parameters():
         param.requires_grad = False
